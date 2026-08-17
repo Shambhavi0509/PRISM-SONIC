@@ -1,0 +1,613 @@
+{
+  "date": "August 13, 2026",
+  "results": {
+    "speech": {
+      "duplicate": {
+        "n": 200,
+        "accuracy": 1.0,
+        "recall_at_1": 1.0,
+        "recall_at_5": 1.0,
+        "precision": 1.0,
+        "n_accepted": 200,
+        "n_rejected_no_match": 0,
+        "mean_ms": 66.76530450000428,
+        "p50_ms": 70.63475000177277,
+        "p95_ms": 95.57168499704858,
+        "p99_ms": 102.42679199891425,
+        "max_ms": 104.6676000005391,
+        "throughput_qps": 14.977839275786362
+      },
+      "edited_overall": {
+        "n": 3000,
+        "accuracy": 0.9943333333333333,
+        "recall_at_1": 0.9943333333333333,
+        "recall_at_5": 0.9966666666666667,
+        "precision": 0.9943333333333333,
+        "n_accepted": 3000,
+        "n_rejected_no_match": 0,
+        "mean_ms": 45.40463883337361,
+        "p50_ms": 42.16909999922791,
+        "p95_ms": 87.43754500192154,
+        "p99_ms": 95.96482500008277,
+        "max_ms": 119.94659999982105,
+        "throughput_qps": 22.024181354460495
+      },
+      "edited_by_modification": {
+        "background_noise": {
+          "levels_tested": [
+            "30"
+          ],
+          "unit": "SNR_dB",
+          "n_queries": 200,
+          "accuracy": 0.97,
+          "recall_at_1": 0.97,
+          "recall_at_5": 0.98,
+          "mean_ms": 35.22138600010294,
+          "p50_ms": 35.81470000062836,
+          "p95_ms": 51.952909999818075,
+          "p99_ms": 55.198831000125054,
+          "max_ms": 73.335600001883,
+          "throughput_qps": 28.391841252274325
+        },
+        "filtering": {
+          "levels_tested": [
+            "('highpass', 50)",
+            "('lowpass', 10000)"
+          ],
+          "unit": "filter_spec",
+          "n_queries": 400,
+          "accuracy": 1.0,
+          "recall_at_1": 1.0,
+          "recall_at_5": 1.0,
+          "mean_ms": 40.10610600000291,
+          "p50_ms": 41.07385000315844,
+          "p95_ms": 59.13387000236976,
+          "p99_ms": 71.2953860000197,
+          "max_ms": 90.72599999853992,
+          "throughput_qps": 24.933859198395563
+        },
+        "gain_change": {
+          "levels_tested": [
+            "-1",
+            "1"
+          ],
+          "unit": "dB",
+          "n_queries": 400,
+          "accuracy": 1.0,
+          "recall_at_1": 1.0,
+          "recall_at_5": 1.0,
+          "mean_ms": 41.828238999996756,
+          "p50_ms": 43.75805000199762,
+          "p95_ms": 60.19927500001357,
+          "p99_ms": 64.29484999785917,
+          "max_ms": 86.03649999713525,
+          "throughput_qps": 23.90729382606993
+        },
+        "mp3_compression": {
+          "levels_tested": [
+            "192"
+          ],
+          "unit": "kbps_CBR",
+          "n_queries": 200,
+          "accuracy": 1.0,
+          "recall_at_1": 1.0,
+          "recall_at_5": 1.0,
+          "mean_ms": 41.91807500015784,
+          "p50_ms": 44.06020000169519,
+          "p95_ms": 60.642510000434385,
+          "p99_ms": 76.99243099810698,
+          "max_ms": 83.65369999955874,
+          "throughput_qps": 23.856057321244702
+        },
+        "pitch_shift": {
+          "levels_tested": [
+            "-0.5",
+            "0.5"
+          ],
+          "unit": "semitones",
+          "n_queries": 400,
+          "accuracy": 0.9925,
+          "recall_at_1": 0.9925,
+          "recall_at_5": 1.0,
+          "mean_ms": 59.31130299997676,
+          "p50_ms": 63.95599999996193,
+          "p95_ms": 96.20700000177743,
+          "p99_ms": 113.32882700044136,
+          "max_ms": 119.94659999982105,
+          "throughput_qps": 16.860192735951053
+        },
+        "speed_change": {
+          "levels_tested": [
+            "0.995",
+            "1.005"
+          ],
+          "unit": "rate_multiplier",
+          "n_queries": 400,
+          "accuracy": 1.0,
+          "recall_at_1": 1.0,
+          "recall_at_5": 1.0,
+          "mean_ms": 70.1410145000682,
+          "p50_ms": 80.36410000022443,
+          "p95_ms": 93.94481999788695,
+          "p99_ms": 97.00595799902656,
+          "max_ms": 104.07950000080746,
+          "throughput_qps": 14.256993673780235
+        },
+        "time_shift": {
+          "levels_tested": [
+            "-20",
+            "20"
+          ],
+          "unit": "milliseconds",
+          "n_queries": 400,
+          "accuracy": 1.0,
+          "recall_at_1": 1.0,
+          "recall_at_5": 1.0,
+          "mean_ms": 37.75410225009182,
+          "p50_ms": 37.12164999888046,
+          "p95_ms": 61.794030001692576,
+          "p99_ms": 81.7870000000039,
+          "max_ms": 89.47579999949085,
+          "throughput_qps": 26.487187892212905
+        },
+        "trim_end": {
+          "levels_tested": [
+            "0.05"
+          ],
+          "unit": "seconds_removed",
+          "n_queries": 200,
+          "accuracy": 1.0,
+          "recall_at_1": 1.0,
+          "recall_at_5": 1.0,
+          "mean_ms": 34.53627150001921,
+          "p50_ms": 36.70160000001488,
+          "p95_ms": 50.14920499852451,
+          "p99_ms": 57.06825500070402,
+          "max_ms": 72.95040000099107,
+          "throughput_qps": 28.955065401296828
+        },
+        "trim_start": {
+          "levels_tested": [
+            "0.05"
+          ],
+          "unit": "seconds_removed",
+          "n_queries": 200,
+          "accuracy": 1.0,
+          "recall_at_1": 1.0,
+          "recall_at_5": 1.0,
+          "mean_ms": 36.5222984999491,
+          "p50_ms": 35.26704999967478,
+          "p95_ms": 58.731000001353095,
+          "p99_ms": 80.69618800003809,
+          "max_ms": 82.99249999981839,
+          "throughput_qps": 27.38053301879107
+        },
+        "white_noise": {
+          "levels_tested": [
+            "35"
+          ],
+          "unit": "SNR_dB",
+          "n_queries": 200,
+          "accuracy": 0.96,
+          "recall_at_1": 0.96,
+          "recall_at_5": 0.97,
+          "mean_ms": 34.59002200010218,
+          "p50_ms": 35.66820000014559,
+          "p95_ms": 50.66555499961395,
+          "p99_ms": 65.17379400233025,
+          "max_ms": 88.33690000028582,
+          "throughput_qps": 28.910071233751918
+        }
+      },
+      "index_build_time_sec": 27.368437400000403,
+      "index_bytes": 5881256
+    },
+    "music": {
+      "duplicate": {
+        "n": 200,
+        "accuracy": 1.0,
+        "recall_at_1": 1.0,
+        "recall_at_5": 1.0,
+        "precision": 1.0,
+        "n_accepted": 200,
+        "n_rejected_no_match": 0,
+        "mean_ms": 50.46045999984926,
+        "p50_ms": 47.052949998033,
+        "p95_ms": 71.71910000179187,
+        "p99_ms": 85.81357999948521,
+        "max_ms": 93.34259999741334,
+        "throughput_qps": 19.81749670936387
+      },
+      "edited_overall": {
+        "n": 3000,
+        "accuracy": 0.989,
+        "recall_at_1": 0.989,
+        "recall_at_5": 0.999,
+        "precision": 0.989,
+        "n_accepted": 3000,
+        "n_rejected_no_match": 0,
+        "mean_ms": 48.8063640999826,
+        "p50_ms": 41.694749999805936,
+        "p95_ms": 79.17685500215157,
+        "p99_ms": 103.91379900127451,
+        "max_ms": 205.88230000066687,
+        "throughput_qps": 20.489131252462144
+      },
+      "edited_by_modification": {
+        "background_noise": {
+          "levels_tested": [
+            "30"
+          ],
+          "unit": "SNR_dB",
+          "n_queries": 200,
+          "accuracy": 1.0,
+          "recall_at_1": 1.0,
+          "recall_at_5": 1.0,
+          "mean_ms": 34.860044500164804,
+          "p50_ms": 31.34515000056126,
+          "p95_ms": 57.105829999272814,
+          "p99_ms": 72.1830759970544,
+          "max_ms": 74.88069999817526,
+          "throughput_qps": 28.68613664550177
+        },
+        "filtering": {
+          "levels_tested": [
+            "('highpass', 50)",
+            "('lowpass', 10000)"
+          ],
+          "unit": "filter_spec",
+          "n_queries": 400,
+          "accuracy": 1.0,
+          "recall_at_1": 1.0,
+          "recall_at_5": 1.0,
+          "mean_ms": 35.684719749924625,
+          "p50_ms": 32.09640000022773,
+          "p95_ms": 59.49681999954919,
+          "p99_ms": 74.0515690007669,
+          "max_ms": 78.34139999977197,
+          "throughput_qps": 28.023198921216476
+        },
+        "gain_change": {
+          "levels_tested": [
+            "-1",
+            "1"
+          ],
+          "unit": "dB",
+          "n_queries": 400,
+          "accuracy": 1.0,
+          "recall_at_1": 1.0,
+          "recall_at_5": 1.0,
+          "mean_ms": 35.63840874989182,
+          "p50_ms": 32.3296999977174,
+          "p95_ms": 59.74888499840745,
+          "p99_ms": 72.79726500128162,
+          "max_ms": 80.64659999945434,
+          "throughput_qps": 28.059614193718325
+        },
+        "mp3_compression": {
+          "levels_tested": [
+            "192"
+          ],
+          "unit": "kbps_CBR",
+          "n_queries": 200,
+          "accuracy": 1.0,
+          "recall_at_1": 1.0,
+          "recall_at_5": 1.0,
+          "mean_ms": 39.888023499952396,
+          "p50_ms": 37.63699999944947,
+          "p95_ms": 59.53508000075087,
+          "p99_ms": 71.37577299861731,
+          "max_ms": 77.00159999876632,
+          "throughput_qps": 25.07018178028283
+        },
+        "pitch_shift": {
+          "levels_tested": [
+            "-0.5",
+            "0.5"
+          ],
+          "unit": "semitones",
+          "n_queries": 400,
+          "accuracy": 0.92,
+          "recall_at_1": 0.92,
+          "recall_at_5": 0.9925,
+          "mean_ms": 72.25386050000452,
+          "p50_ms": 71.7028000017308,
+          "p95_ms": 82.48497500080703,
+          "p99_ms": 88.21252399808145,
+          "max_ms": 90.85129999948549,
+          "throughput_qps": 13.840090938807863
+        },
+        "speed_change": {
+          "levels_tested": [
+            "0.995",
+            "1.005"
+          ],
+          "unit": "rate_multiplier",
+          "n_queries": 400,
+          "accuracy": 0.9975,
+          "recall_at_1": 0.9975,
+          "recall_at_5": 1.0,
+          "mean_ms": 65.4308860000674,
+          "p50_ms": 69.13235000138229,
+          "p95_ms": 80.86768999874037,
+          "p99_ms": 90.5478289986058,
+          "max_ms": 108.27829999834648,
+          "throughput_qps": 15.283302139588478
+        },
+        "time_shift": {
+          "levels_tested": [
+            "-20",
+            "20"
+          ],
+          "unit": "milliseconds",
+          "n_queries": 400,
+          "accuracy": 1.0,
+          "recall_at_1": 1.0,
+          "recall_at_5": 1.0,
+          "mean_ms": 50.88255950004168,
+          "p50_ms": 45.31055000006745,
+          "p95_ms": 75.06747999887011,
+          "p99_ms": 81.18055800092407,
+          "max_ms": 89.70209999824874,
+          "throughput_qps": 19.65309940823989
+        },
+        "trim_end": {
+          "levels_tested": [
+            "0.05"
+          ],
+          "unit": "seconds_removed",
+          "n_queries": 200,
+          "accuracy": 1.0,
+          "recall_at_1": 1.0,
+          "recall_at_5": 1.0,
+          "mean_ms": 40.053154499983066,
+          "p50_ms": 38.5599999990518,
+          "p95_ms": 63.01427500093267,
+          "p99_ms": 76.08671800084264,
+          "max_ms": 80.6951000013214,
+          "throughput_qps": 24.966822525811864
+        },
+        "trim_start": {
+          "levels_tested": [
+            "0.05"
+          ],
+          "unit": "seconds_removed",
+          "n_queries": 200,
+          "accuracy": 1.0,
+          "recall_at_1": 1.0,
+          "recall_at_5": 1.0,
+          "mean_ms": 62.39569049996135,
+          "p50_ms": 50.84130000068399,
+          "p95_ms": 132.5916049980151,
+          "p99_ms": 151.2173629990865,
+          "max_ms": 205.88230000066687,
+          "throughput_qps": 16.026747872925927
+        },
+        "white_noise": {
+          "levels_tested": [
+            "35"
+          ],
+          "unit": "SNR_dB",
+          "n_queries": 200,
+          "accuracy": 1.0,
+          "recall_at_1": 1.0,
+          "recall_at_5": 1.0,
+          "mean_ms": 35.117679499817314,
+          "p50_ms": 30.543099999704282,
+          "p95_ms": 72.28844000001112,
+          "p99_ms": 111.19434700172859,
+          "max_ms": 113.66659999839612,
+          "throughput_qps": 28.47568558751731
+        }
+      },
+      "index_build_time_sec": 41.28087400000004,
+      "index_bytes": 11361204
+    },
+    "environment": {
+      "duplicate": {
+        "n": 200,
+        "accuracy": 1.0,
+        "recall_at_1": 1.0,
+        "recall_at_5": 1.0,
+        "precision": 1.0,
+        "n_accepted": 200,
+        "n_rejected_no_match": 0,
+        "mean_ms": 35.68109149993688,
+        "p50_ms": 38.28890000113461,
+        "p95_ms": 61.180954998781075,
+        "p99_ms": 93.59510099777236,
+        "max_ms": 169.60190000099828,
+        "throughput_qps": 28.026048474491564
+      },
+      "edited_overall": {
+        "n": 3000,
+        "accuracy": 0.9843333333333333,
+        "recall_at_1": 0.9843333333333333,
+        "recall_at_5": 0.9976666666666667,
+        "precision": 0.9843333333333333,
+        "n_accepted": 3000,
+        "n_rejected_no_match": 0,
+        "mean_ms": 34.66825606660617,
+        "p50_ms": 27.585249999901862,
+        "p95_ms": 95.29313000075486,
+        "p99_ms": 137.05463499722077,
+        "max_ms": 177.55070000202977,
+        "throughput_qps": 28.844831366156875
+      },
+      "edited_by_modification": {
+        "background_noise": {
+          "levels_tested": [
+            "30"
+          ],
+          "unit": "SNR_dB",
+          "n_queries": 200,
+          "accuracy": 0.975,
+          "recall_at_1": 0.975,
+          "recall_at_5": 0.99,
+          "mean_ms": 25.88021799991111,
+          "p50_ms": 24.81640000041807,
+          "p95_ms": 46.99076000160835,
+          "p99_ms": 104.81490500278578,
+          "max_ms": 138.0381999988458,
+          "throughput_qps": 38.639550872540354
+        },
+        "filtering": {
+          "levels_tested": [
+            "('highpass', 50)",
+            "('lowpass', 10000)"
+          ],
+          "unit": "filter_spec",
+          "n_queries": 400,
+          "accuracy": 1.0,
+          "recall_at_1": 1.0,
+          "recall_at_5": 1.0,
+          "mean_ms": 23.99557249997997,
+          "p50_ms": 24.978150000606547,
+          "p95_ms": 40.0010100003783,
+          "p99_ms": 91.32984400021084,
+          "max_ms": 116.9804999990447,
+          "throughput_qps": 41.674354716931
+        },
+        "gain_change": {
+          "levels_tested": [
+            "-1",
+            "1"
+          ],
+          "unit": "dB",
+          "n_queries": 400,
+          "accuracy": 1.0,
+          "recall_at_1": 1.0,
+          "recall_at_5": 1.0,
+          "mean_ms": 23.91516124993359,
+          "p50_ms": 24.80554999965534,
+          "p95_ms": 40.03836000119918,
+          "p99_ms": 78.59302300046683,
+          "max_ms": 142.38409999961732,
+          "throughput_qps": 41.81447867104709
+        },
+        "mp3_compression": {
+          "levels_tested": [
+            "192"
+          ],
+          "unit": "kbps_CBR",
+          "n_queries": 200,
+          "accuracy": 1.0,
+          "recall_at_1": 1.0,
+          "recall_at_5": 1.0,
+          "mean_ms": 23.56390700000702,
+          "p50_ms": 25.007850001202314,
+          "p95_ms": 39.101595001557115,
+          "p99_ms": 69.54499200048299,
+          "max_ms": 93.76640000118641,
+          "throughput_qps": 42.43778419256628
+        },
+        "pitch_shift": {
+          "levels_tested": [
+            "-0.5",
+            "0.5"
+          ],
+          "unit": "semitones",
+          "n_queries": 400,
+          "accuracy": 0.9575,
+          "recall_at_1": 0.9575,
+          "recall_at_5": 0.9925,
+          "mean_ms": 60.9936397499132,
+          "p50_ms": 59.454800000821706,
+          "p95_ms": 129.84874000212582,
+          "p99_ms": 157.44094500027128,
+          "max_ms": 165.27290000158246,
+          "throughput_qps": 16.395152086352137
+        },
+        "speed_change": {
+          "levels_tested": [
+            "0.995",
+            "1.005"
+          ],
+          "unit": "rate_multiplier",
+          "n_queries": 400,
+          "accuracy": 0.9775,
+          "recall_at_1": 0.9775,
+          "recall_at_5": 1.0,
+          "mean_ms": 45.11369900007594,
+          "p50_ms": 38.23480000028212,
+          "p95_ms": 110.96332000033725,
+          "p99_ms": 145.64486199957167,
+          "max_ms": 174.99080000197864,
+          "throughput_qps": 22.16621607548334
+        },
+        "time_shift": {
+          "levels_tested": [
+            "-20",
+            "20"
+          ],
+          "unit": "milliseconds",
+          "n_queries": 400,
+          "accuracy": 0.9775,
+          "recall_at_1": 0.9775,
+          "recall_at_5": 1.0,
+          "mean_ms": 38.975514499861674,
+          "p50_ms": 34.29440000036266,
+          "p95_ms": 102.7376250003725,
+          "p99_ms": 153.7176899978294,
+          "max_ms": 177.55070000202977,
+          "throughput_qps": 25.657134045107963
+        },
+        "trim_end": {
+          "levels_tested": [
+            "0.05"
+          ],
+          "unit": "seconds_removed",
+          "n_queries": 200,
+          "accuracy": 1.0,
+          "recall_at_1": 1.0,
+          "recall_at_5": 1.0,
+          "mean_ms": 22.258199999996577,
+          "p50_ms": 23.80269999957818,
+          "p95_ms": 36.89447000015207,
+          "p99_ms": 54.363316000053416,
+          "max_ms": 77.04279999961727,
+          "throughput_qps": 44.9272627615959
+        },
+        "trim_start": {
+          "levels_tested": [
+            "0.05"
+          ],
+          "unit": "seconds_removed",
+          "n_queries": 200,
+          "accuracy": 0.985,
+          "recall_at_1": 0.985,
+          "recall_at_5": 1.0,
+          "mean_ms": 37.611163499877875,
+          "p50_ms": 34.312100000533974,
+          "p95_ms": 90.88503500242949,
+          "p99_ms": 129.19809899980442,
+          "max_ms": 157.63130000050296,
+          "throughput_qps": 26.587850705635496
+        },
+        "white_noise": {
+          "levels_tested": [
+            "35"
+          ],
+          "unit": "SNR_dB",
+          "n_queries": 200,
+          "accuracy": 0.98,
+          "recall_at_1": 0.98,
+          "recall_at_5": 0.99,
+          "mean_ms": 24.723178499771166,
+          "p50_ms": 24.893449999581208,
+          "p95_ms": 38.523324999914585,
+          "p99_ms": 107.35224799693233,
+          "max_ms": 139.97469999958412,
+          "throughput_qps": 40.44787364251145
+        }
+      },
+      "index_build_time_sec": 17.492816800000583,
+      "index_bytes": 4123032
+    }
+  },
+  "overall": {
+    "edited_accuracy": 0.9892222222222222,
+    "pooled_mean_ms": 43.460327937483875,
+    "peak_rss_mb": 108.15625
+  }
+}

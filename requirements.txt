@@ -1,0 +1,9 @@
+numpy
+scipy
+librosa
+soundfile
+faiss-cpu
+pydub
+imageio-ffmpeg
+psutil
+matplotlib
