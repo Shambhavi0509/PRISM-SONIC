@@ -140,6 +140,53 @@ def main():
         print(f"  {mod}: {n}", flush=True)
     print(f"Results written to {RESULTS_ROOT / 'primary_benchmark_results.json'}", flush=True)
 
+    print_summary_table(results)
+
+
+def print_summary_table(results: dict) -> None:
+    """Purely a display step: derives everything below from the already-computed
+    `results` dict (accuracy_stats/latency_stats outputs) - no benchmark logic
+    here, just formatting the final numbers into a clean summary table."""
+    display_names = [("speech", "Speech"), ("music", "Music"), ("environment", "Environmental")]
+
+    rows = []
+    pooled_latency_sum = 0.0
+    pooled_n = 0
+    for category, label in display_names:
+        dup = results[category]["duplicate"]
+        edited = results[category]["edited_overall"]
+
+        dup_correct = round(dup["accuracy"] * dup["n"])
+        edited_correct = round(edited["accuracy"] * edited["n"])
+
+        dup_str = f"{dup['accuracy'] * 100:.2f}% ({dup_correct}/{dup['n']})"
+        edited_str = f"{edited['accuracy'] * 100:.2f}% ({edited_correct}/{edited['n']})"
+        rows.append((label, dup_str, edited_str))
+
+        pooled_latency_sum += dup["mean_ms"] * dup["n"] + edited["mean_ms"] * edited["n"]
+        pooled_n += dup["n"] + edited["n"]
+
+    pooled_avg_ms = pooled_latency_sum / pooled_n if pooled_n else float("nan")
+
+    col1_w = max(16, max(len(r[0]) for r in rows) + 2)
+    col2_w = max(24, max(len(r[1]) for r in rows) + 2)
+
+    width = 65
+    print()
+    print("=" * width)
+    print("BENCHMARK RESULTS".center(width))
+    print("=" * width)
+    print()
+    print(f"{'Dataset':<{col1_w}}{'Duplicate Accuracy':<{col2_w}}{'Edited Accuracy'}")
+    print("-" * width)
+    for label, dup_str, edited_str in rows:
+        print(f"{label:<{col1_w}}{dup_str:<{col2_w}}{edited_str}")
+    print("-" * width)
+    print()
+    print(f"Peak RAM: {results['peak_rss_mb']:.1f} MB")
+    print(f"Pooled average query time: {pooled_avg_ms:.2f} ms")
+    print("=" * width)
+
 
 if __name__ == "__main__":
     main()

@@ -1,2 +1,24 @@
+# Datasets
 dataset/
+Testing Output Database/
+Input Database/
+
+# Generated indexes
+indexes/
+
+# Test/output results
 results/
+test_results/
+
+# Claude files
+.claude/
+
+# Documentation / reports
+*.pdf
+*.docx
+*.txt
+*.md
+
+# Python cache
+__pycache__/
+*.pyc
