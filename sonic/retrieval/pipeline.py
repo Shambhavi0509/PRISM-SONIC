@@ -55,43 +55,6 @@ DEFAULT_MARGIN_TAU = 0.20
 DEFAULT_MIN_SCORE_TAU = 50.0
 DEFAULT_MIN_ACCEPT_SCORE = 0.5  # absolute floor below which we report "no match" rather than a weak guess
 
-# Measured bug (false-positive escalated matches): the escalated-path fused
-# `combined_scores` total (landmark+Hamming+sub-fingerprint-vote+pitch-rescue
-# evidence summed together) does NOT have a stable absolute scale - it grows
-# with query length/window count/corpus size, so DEFAULT_MIN_ACCEPT_SCORE
-# alone cannot separate genuine matches from genuine non-matches here.
-#
-# Calibrated on a 59-sample set (35 genuine escalated matches - real
-# pitch/mp3-modified audio already indexed, across all 3 domains - vs 24
-# genuine non-matches - real audio absent from the index, incl. cross-domain
-# queries). Absolute score ranges fully overlap (matches 186-2506,
-# non-matches 210-1760); MARGIN (top-1 vs top-2 of combined_scores)
-# separates better but imperfectly: matches median 0.257 (IQR 0.10-0.42),
-# non-matches median 0.172 (IQR 0.04-0.29). Threshold swept on this set:
-#   margin>=0.20: 18/35 matches kept, 13/24 non-matches rejected (FP=11)
-#   margin>=0.22: 18/35 matches kept, 14/24 non-matches rejected (FP=10)
-#   margin>=0.25: 18/35 matches kept, 16/24 non-matches rejected (FP=8)  <- chosen
-#   margin>=0.30: 15/35 matches kept, 19/24 non-matches rejected (FP=5)
-# 0.25 is a strict improvement over 0.20-0.22 (same match recall, fewer
-# false positives); beyond 0.25, further reduction in false positives starts
-# trading away real match recall rather than coming for free.
-#
-# Known remaining limitation, NOT fixable by this threshold alone: a handful
-# of non-match probes show genuine partial primary-stage landmark overlap
-# with a specific wrong database file (a true "hub file" acoustic-similarity
-# case - e.g. two different real environmental recordings that are
-# legitimately similar-sounding), not pure coincidental noise. Their margin
-# can land inside the normal match range (one measured case: margin=0.367,
-# above the match-set median) - no feature already computed in this pipeline
-# (margin, score decay to rank 3, candidate count, or whether the top
-# candidate also appears in the primary-stage shortlist) separated that case
-# from genuine matches without discarding roughly a third of real matches
-# too. Resolving that specific failure mode would need new evidence the
-# architecture doesn't currently compute (e.g. stronger secondary-index IDF
-# weighting specifically for this domain, or a verification stage) - out of
-# scope for a threshold-only fix.
-DEFAULT_ESCALATED_MARGIN_TAU = 0.25
-
 # Gate for the +-1 semitone pitch-hypothesis rescue (see its use in
 # query_array below) - a SEPARATE, more permissive margin than
 # DEFAULT_MARGIN_TAU because this only controls whether a cheap secondary
@@ -137,7 +100,6 @@ class DomainIndex:
     margin_tau: float = DEFAULT_MARGIN_TAU
     min_score_tau: float = DEFAULT_MIN_SCORE_TAU
     min_accept_score: float = DEFAULT_MIN_ACCEPT_SCORE
-    escalated_margin_tau: float = DEFAULT_ESCALATED_MARGIN_TAU
     query_max_duration_sec: float = QUERY_MAX_DURATION_SEC
 
     def nbytes(self) -> int:
@@ -528,15 +490,7 @@ def query_array(y: np.ndarray, idx: DomainIndex, top_k: int = 5, load_ms: float 
     ranked = sorted(combined_scores, key=combined_scores.get, reverse=True)[:top_k]
     best_fid = ranked[0]
     best_c = primary_ids.get(best_fid)
-    # See DEFAULT_ESCALATED_MARGIN_TAU's comment: the fused score alone has no
-    # stable absolute scale, so acceptance also requires the winner to have a
-    # clear relative lead over the runner-up - the same score-AND-relative-
-    # evidence philosophy _is_confident() already applies to the primary
-    # stage, now also applied to this stage's own final decision.
-    _second_best = max((v for fid, v in combined_scores.items() if fid != best_fid), default=0.0)
-    _top_score = combined_scores[best_fid]
-    _escalated_margin = ((_top_score - _second_best) / _top_score) if _top_score > 0 else 0.0
-    accepted = (_top_score >= idx.min_accept_score) and (_escalated_margin >= idx.escalated_margin_tau)
+    accepted = combined_scores[best_fid] >= idx.min_accept_score
 
     return MatchResult(
         file_id=(best_fid if accepted else None),

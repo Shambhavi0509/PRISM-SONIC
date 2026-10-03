@@ -1,24 +1,20 @@
 # Datasets
 dataset/
-Testing Output Database/
-Input Database/
+datasets/
 
-# Generated indexes
-indexes/
-
-# Test/output results
+# Results
 results/
-test_results/
 
-# Claude files
-.claude/
-
-# Documentation / reports
+# Documents / Reports
 *.pdf
 *.docx
-*.txt
-*.md
 
-# Python cache
+# Python
 __pycache__/
 *.pyc
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/

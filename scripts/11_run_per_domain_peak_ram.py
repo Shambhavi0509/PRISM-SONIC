@@ -28,7 +28,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import psutil
 import soundfile as sf
 
-from sonic.config import RESULTS_ROOT
+from sonic.config import ANALYSIS_SR, RESULTS_ROOT
+from sonic.io import load_audio
 from sonic.eval.metrics import accuracy_stats, latency_stats
 from sonic.retrieval.pipeline import build_domain_index, query, query_array
 
@@ -42,6 +43,14 @@ def rss_mb():
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--category", required=True, choices=["speech", "music", "environment"])
+    parser.add_argument("--manifest", default=str(RESULTS_ROOT / "manifest.json"),
+                        help="indexed-file manifest (default: results/manifest.json)")
+    parser.add_argument("--queries", default=str(RESULTS_ROOT / "primary_benchmark_manifest.json"),
+                        help="edited-query records json (default: results/primary_benchmark_manifest.json)")
+    parser.add_argument("--out", default=None,
+                        help="output json (default: results/peak_ram_<category>.json)")
+    parser.add_argument("--details-csv", default=None,
+                        help="optional: write one row per individual query to this csv")
     args = parser.parse_args()
     category = args.category
 
@@ -49,12 +58,14 @@ def main():
     rss_at_start = peak_rss
     print(f"[{category}] RSS at start: {rss_at_start:.1f} MB", flush=True)
 
-    with open(RESULTS_ROOT / "manifest.json") as f:
+    with open(args.manifest) as f:
         manifest = json.load(f)
-    with open(RESULTS_ROOT / "primary_benchmark_manifest.json") as f:
+    with open(args.queries) as f:
         mod_records_all = json.load(f)["records"]
 
     entries = manifest["categories"][category]
+    filename_by_id = {e["file_id"]: e["filename"] for e in entries}
+    detail_rows = []
 
     t0 = time.perf_counter()
     idx = build_domain_index(category, entries)
@@ -72,6 +83,12 @@ def main():
         dup_records.append({
             "correct": res.file_id == e["file_id"], "predicted_id": res.file_id,
             "true_id": e["file_id"], "ranked_ids": res.ranked_ids, "latency_ms": lat,
+        })
+        detail_rows.append({
+            "dataset": category, "query_type": "duplicate", "augmentation": "-",
+            "query_file": e["filename"], "true_file": e["filename"],
+            "predicted_file": filename_by_id.get(res.file_id, ""),
+            "correct": int(res.file_id == e["file_id"]), "latency_ms": round(lat, 3),
         })
         if (i + 1) % 20 == 0:
             peak_rss = max(peak_rss, rss_mb())
@@ -100,6 +117,13 @@ def main():
                 })
                 continue
             y, sr = sf.read(r["modified_path"], dtype="float32", always_2d=False)
+            if sr != ANALYSIS_SR:
+                # Query file isn't at the shared analysis rate (e.g. augmented audio kept at its
+                # native rate): apply the same existing preprocessing used for indexing and
+                # duplicate queries (mono, resample to ANALYSIS_SR, peak-normalize). Files already
+                # at ANALYSIS_SR (the original primary benchmark's) keep the unchanged path.
+                y = load_audio(r["modified_path"])
+                sr = ANALYSIS_SR
             t0 = time.perf_counter()
             res = query_array(y, idx, sr=sr)
             lat = (time.perf_counter() - t0) * 1000
@@ -107,6 +131,13 @@ def main():
                 "correct": res.file_id == r["true_file_id"], "predicted_id": res.file_id,
                 "true_id": r["true_file_id"], "ranked_ids": res.ranked_ids, "latency_ms": lat,
                 "level": r["level"], "unit": r["unit"],
+            })
+            detail_rows.append({
+                "dataset": category, "query_type": "edited", "augmentation": mod_name,
+                "query_file": Path(r["modified_path"]).name,
+                "true_file": filename_by_id.get(r["true_file_id"], ""),
+                "predicted_file": filename_by_id.get(res.file_id, ""),
+                "correct": int(res.file_id == r["true_file_id"]), "latency_ms": round(lat, 3),
             })
             if (i + 1) % 20 == 0:
                 peak_rss = max(peak_rss, rss_mb())
@@ -142,9 +173,19 @@ def main():
         "edited_by_modification": per_mod_results,
     }
 
-    out_path = RESULTS_ROOT / f"peak_ram_{category}.json"
+    out_path = Path(args.out) if args.out else RESULTS_ROOT / f"peak_ram_{category}.json"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w") as f:
         json.dump(result, f, indent=2)
+
+    if args.details_csv:
+        import csv
+        Path(args.details_csv).parent.mkdir(parents=True, exist_ok=True)
+        with open(args.details_csv, "w", newline="", encoding="utf-8") as f:
+            w = csv.DictWriter(f, fieldnames=["dataset", "query_type", "augmentation", "query_file",
+                                              "true_file", "predicted_file", "correct", "latency_ms"])
+            w.writeheader()
+            w.writerows(detail_rows)
 
     print(f"\n[{category}] Peak RSS (isolated process): {peak_rss:.1f} MB "
           f"(baseline {rss_at_start:.1f} MB, growth {peak_rss - rss_at_start:.1f} MB)", flush=True)

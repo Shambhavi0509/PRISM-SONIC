@@ -37,14 +37,16 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from sonic.augment.modifications import (  # noqa: E402
     apply_filter,
-    gain_change,
     mp3_compress,
     pitch_shift,
 )
 
-MANIFEST_PATH = REPO_ROOT / "results" / "manifest.json"
 DATASET_ROOT = REPO_ROOT / "dataset"
-OUT_ROOT = REPO_ROOT / "results" / "experiment_600"
+OUT_ROOT = REPO_ROOT / "results" / "experiment_600_corrected"
+SELECTED_MANIFEST_CSV = OUT_ROOT / "selected_600_manifest.csv"
+AUGMENTATION_METADATA_CSV = OUT_ROOT / "augmentation_metadata.csv"
+AUGMENTATION_COUNTS_CSV = OUT_ROOT / "augmentation_counts.csv"
+SELECTED_MANIFEST_JSON = OUT_ROOT / "manifest_600.json"
 
 # Dataset1/2/3 <-> underlying category folder. Order fixed for reproducibility.
 DATASETS = [
@@ -67,6 +69,11 @@ TIME_SHIFT_RANGE_SEC = (5.0, 20.0)
 
 MIN_USABLE_SEC = 0.5   # never emit audio shorter than this
 MIN_PROCESS_SEC = 0.05  # below this, skip every augmentation for the clip
+# Trim and Time Shift remove/relocate content, so the shortened clip (trim) or each of the two
+# segments (time shift) must stay usable by the retrieval system: at least one full secondary-
+# fingerprint window (= sonic.fingerprint.binary_embed.SUBFP_WINDOW_SEC, 1.5 s). Derived from the
+# system's own window length, not tuned to accuracy.
+MIN_REMAINING_SEC = 1.5
 
 AUGMENTATIONS = [
     "pitch_shift",
@@ -106,21 +113,60 @@ class Record(dict):
     pass
 
 
-def select_clips(rng, n_per_dataset):
-    import json
-
-    with open(MANIFEST_PATH) as f:
-        manifest = json.load(f)
-
+def select_clips(seed, n_per_dataset):
+    """Randomly selects n readable files per domain directly from
+    dataset/<domain>/ (no dependency on any shared manifest), using a
+    per-domain RNG derived from `seed` so the selection is reproducible.
+    A domain with fewer than n readable files (Music has exactly 200) simply
+    contributes all of them - files are never duplicated to reach n."""
     selected = {}
     for _dname, category in DATASETS:
-        entries = manifest["categories"][category]
-        pool = list(entries)
-        rng_local = random.Random(SEED)  # independent, deterministic per category
-        rng_local.shuffle(pool)
-        n = min(n_per_dataset, len(pool))
-        selected[category] = pool[:n]
+        d = DATASET_ROOT / category
+        names = sorted(p.name for p in d.iterdir() if p.is_file())
+        random.Random(f"{seed}|{category}").shuffle(names)
+        entries = []
+        for name in names:
+            if len(entries) >= n_per_dataset:
+                break
+            path = d / name
+            try:
+                info = sf.info(str(path))
+                duration = info.frames / info.samplerate if info.samplerate else 0.0
+            except Exception:
+                continue  # unreadable file: skip, take the next one in the shuffled order
+            if duration <= 0:
+                continue
+            entries.append({
+                "category": category, "filename": name, "path": str(path),
+                "orig_samplerate": info.samplerate, "orig_channels": info.channels,
+                "duration_sec": round(duration, 4),
+            })
+        entries.sort(key=lambda e: e["filename"])
+        selected[category] = entries
+
+    file_id = 0
+    for _dname, category in DATASETS:
+        for e in selected[category]:
+            e["file_id"] = file_id
+            file_id += 1
     return selected
+
+
+def write_selected_manifest(selected, csv_path, json_path):
+    """results/selected_600_manifest.csv (human-readable record of exactly which
+    originals were used) + a SONIC-format manifest json consumed by the benchmark."""
+    import json
+
+    with open(csv_path, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["dataset", "original_filename", "original_path", "duration_sec",
+                    "sample_rate", "channels", "file_id"])
+        for _dname, category in DATASETS:
+            for e in selected[category]:
+                w.writerow([DATASET_DISPLAY_NAME[category], e["filename"], e["path"],
+                            e["duration_sec"], e["orig_samplerate"], e["orig_channels"], e["file_id"]])
+    with open(json_path, "w") as f:
+        json.dump({"categories": selected}, f, indent=2)
 
 
 def load_audio(path):
@@ -133,7 +179,7 @@ def safe_write(path, y, sr):
         raise ValueError("empty audio buffer")
     if not np.all(np.isfinite(y)):
         raise ValueError("non-finite samples")
-    sf.write(str(path), y, sr)
+    sf.write(str(path), y, sr, subtype="FLOAT")  # float: no clipping/quantization from the container
 
 
 # ------------------------------------------------------------ augmentations
@@ -200,7 +246,7 @@ def do_gain(rng, y, sr, orig_dur):
     if orig_dur < MIN_PROCESS_SEC:
         return None, None, "skipped", "clip too short to process (<0.05s)"
     gain_db = round(rng.uniform(*GAIN_RANGE_DB), 2)
-    out = gain_change(y, sr, gain_db)
+    out = (y * 10 ** (gain_db / 20)).astype(np.float32)  # pure gain; gain_change() would hard-clip at +-1
     return out, f"{gain_db:+.2f} dB", "applied", ""
 
 
@@ -217,57 +263,44 @@ def do_highpass(rng, y, sr, orig_dur):
 
 
 def do_trim(rng, y, sr, orig_dur):
-    if orig_dur <= MIN_USABLE_SEC:
-        return None, None, "skipped", f"clip too short to trim (duration={orig_dur:.2f}s <= {MIN_USABLE_SEC}s)"
     target = round(rng.uniform(*TRIM_RANGE_SEC), 2)
-    max_valid_trim = orig_dur - MIN_USABLE_SEC
-    if target <= max_valid_trim:
-        trim_sec = target
-        status, reason = "applied", ""
+    max_valid = orig_dur - MIN_REMAINING_SEC  # most we can remove and still leave a usable clip
+    if max_valid < TRIM_RANGE_SEC[0]:
+        return None, None, "skipped", (
+            f"clip too short for any trim inside {TRIM_RANGE_SEC[0]:g}-{TRIM_RANGE_SEC[1]:g}s "
+            f"(duration={orig_dur:.2f}s; needs >= {TRIM_RANGE_SEC[0] + MIN_REMAINING_SEC:g}s so >= {MIN_REMAINING_SEC:g}s remains)")
+    if target <= max_valid:
+        trim_sec, status, reason = target, "applied", ""
     else:
-        trim_sec = max_valid_trim
-        if trim_sec < TRIM_RANGE_SEC[0]:
-            status = "adjusted"
-            reason = (
-                f"clip too short for requested range (duration={orig_dur:.2f}s); "
-                f"used max valid trim {trim_sec:.2f}s (below the 3-10s range) "
-                f"to keep >= {MIN_USABLE_SEC}s of usable audio"
-            )
-        else:
-            status = "adjusted"
-            reason = (
-                f"requested trim {target:.2f}s would leave <{MIN_USABLE_SEC}s; "
-                f"capped to max valid trim {trim_sec:.2f}s"
-            )
+        trim_sec = min(TRIM_RANGE_SEC[1], max_valid)  # largest valid value inside the allowed range
+        status = "adjusted"
+        reason = (f"requested trim {target:.2f}s leaves < {MIN_REMAINING_SEC:g}s of a {orig_dur:.2f}s clip; "
+                  f"used the largest valid value in range, {trim_sec:.2f}s")
     n = int(round(trim_sec * sr))
-    n = min(n, y.size - 1)
-    if n <= 0:
-        return None, None, "skipped", "no valid trim amount remains after safety margin"
-    out = y[:-n] if n < y.size else y[:1]
-    if out.size < MIN_USABLE_SEC * sr * 0.9:  # safety re-check
+    out = y[:-n] if 0 < n < y.size else None
+    if out is None or out.size < MIN_REMAINING_SEC * sr * 0.99:  # safety re-check
         return None, None, "skipped", "trim would leave unusably short audio"
     return out, f"{trim_sec:.2f} sec removed from end", status, reason
 
 
 def do_time_shift(rng, y, sr, orig_dur):
-    if orig_dur < 1.0:
-        return None, None, "skipped", f"clip too short for meaningful time shift (duration={orig_dur:.2f}s < 1.0s)"
     target = round(rng.uniform(*TIME_SHIFT_RANGE_SEC), 2)
-    if target < orig_dur:
-        shift_sec = target
-        status, reason = "applied", ""
+    max_valid = orig_dur - MIN_REMAINING_SEC  # circular shift: both segments must stay >= MIN_REMAINING_SEC
+    if max_valid < TIME_SHIFT_RANGE_SEC[0]:
+        return None, None, "skipped", (
+            f"clip too short for any shift inside {TIME_SHIFT_RANGE_SEC[0]:g}-{TIME_SHIFT_RANGE_SEC[1]:g}s "
+            f"(duration={orig_dur:.2f}s; needs >= {TIME_SHIFT_RANGE_SEC[0] + MIN_REMAINING_SEC:g}s)")
+    if target <= max_valid:
+        shift_sec, status, reason = target, "applied", ""
     else:
-        shift_sec = round(orig_dur * 0.5, 2)
+        shift_sec = min(TIME_SHIFT_RANGE_SEC[1], max_valid)  # largest valid value inside the allowed range
         status = "adjusted"
-        reason = (
-            f"requested shift {target:.2f}s >= clip duration ({orig_dur:.2f}s); "
-            f"used a proportional shift of {shift_sec:.2f}s (50% of duration) instead"
-        )
+        reason = (f"requested shift {target:.2f}s too large for a {orig_dur:.2f}s clip; "
+                  f"used the largest valid value in range, {shift_sec:.2f}s")
     n = int(round(shift_sec * sr)) % y.size
     if n == 0:
         return None, None, "skipped", "computed shift amount rounds to 0 samples"
-    out = np.roll(y, n)
-    return out, f"{shift_sec:.2f} sec (circular shift)", status, reason
+    return np.roll(y, n), f"{shift_sec:.2f} sec (circular shift)", status, reason
 
 
 AUG_FUNCS = {
@@ -342,16 +375,33 @@ def process_dataset(dataset_name, category, entries, out_dir, seed):
 
 
 def write_metadata_csv(all_records, path):
+    """One row per (clip, augmentation) attempt, including skipped/failed ones."""
     fieldnames = [
-        "dataset", "category", "original_filename", "original_duration_sec",
-        "augmentation", "requested_range", "param_used", "final_duration_sec",
-        "status", "reason", "output_filename",
+        "dataset", "original_filename", "generated_filename", "generated_path",
+        "original_duration_sec", "augmentation", "requested_range",
+        "actual_param_used", "final_duration_sec", "status", "reason",
     ]
     with open(path, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=fieldnames)
         w.writeheader()
         for r in all_records:
-            w.writerow(r)
+            generated = r["output_filename"]
+            gen_path = ""
+            if generated:
+                gen_path = str(OUT_ROOT / f"{r['dataset']}_{r['category']}" / generated)
+            w.writerow({
+                "dataset": DATASET_DISPLAY_NAME[r["category"]],
+                "original_filename": r["original_filename"],
+                "generated_filename": generated,
+                "generated_path": gen_path,
+                "original_duration_sec": r["original_duration_sec"],
+                "augmentation": DISPLAY_NAME[r["augmentation"]],
+                "requested_range": r["requested_range"],
+                "actual_param_used": r["param_used"],
+                "final_duration_sec": r["final_duration_sec"],
+                "status": r["status"].capitalize(),
+                "reason": r["reason"],
+            })
 
 
 import re
@@ -624,19 +674,67 @@ def print_augmentation_results_table(aug_table, out_dir):
         f.write(text + "\n")
 
 
+# Requested ranges, checked against the parameters actually used (|speed|: both directions are drawn)
+RANGE_CHECKS = {
+    "pitch_shift": (-1.0, 4.0, False), "speed_change": (5.0, 20.0, True), "compression": (64.0, 128.0, False),
+    "noise": (10.0, 20.0, False), "gain": (3.0, 6.0, False), "highpass": (150.0, 200.0, False),
+    "trim": (3.0, 10.0, False), "time_shift": (5.0, 20.0, False),
+}
+
+
+def write_counts_and_check_ranges(all_records, csv_path):
+    """augmentation_counts.csv (dataset x augmentation x status) + verification that only the eight
+    requested augmentations exist and every used parameter lies inside its requested range.
+    Returns the list of violations (empty = OK)."""
+    from collections import Counter
+
+    counts = Counter((r["category"], r["augmentation"], r["status"]) for r in all_records)
+    with open(csv_path, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["dataset", "augmentation", "applied", "adjusted", "skipped", "failed", "generated_files"])
+        for _d, cat in DATASETS:
+            for aug in AUGMENTATIONS:
+                a, j, k, x = (counts[(cat, aug, st)] for st in ("applied", "adjusted", "skipped", "failed"))
+                w.writerow([DATASET_DISPLAY_NAME[cat], DISPLAY_NAME[aug], a, j, k, x, a + j])
+
+    violations = []
+    unexpected = {r["augmentation"] for r in all_records} - set(AUGMENTATIONS)
+    if unexpected:
+        violations.append(f"unexpected augmentation types: {sorted(unexpected)}")
+    tol = 0.011  # parameters are stored rounded to 2 decimals
+    for r in all_records:
+        if r["status"] not in ("applied", "adjusted"):
+            continue
+        v = extract_numeric_param(r["augmentation"], r["param_used"])
+        lo, hi, use_abs = RANGE_CHECKS[r["augmentation"]]
+        if v is None:
+            violations.append(f"{r['dataset']} {r['original_filename']} {r['augmentation']}: unparseable '{r['param_used']}'")
+            continue
+        if use_abs:
+            v = abs(v)
+        if not (lo - tol <= v <= hi + tol):
+            violations.append(f"{r['dataset']} {r['original_filename']} {r['augmentation']}: {v} outside [{lo}, {hi}]")
+    return violations
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--n-per-dataset", type=int, default=200)
     parser.add_argument("--seed", type=int, default=SEED)
+    parser.add_argument("--no-primary-benchmark-section", action="store_true",
+                        help="skip the end-of-run BENCHMARK RESULTS section (which reads "
+                             "results/primary_benchmark_results.json - a different experiment)")
     args = parser.parse_args()
 
     t_start = time.time()
     OUT_ROOT.mkdir(parents=True, exist_ok=True)
 
     print(f"Selecting {args.n_per_dataset} clips per dataset (seed={args.seed})...")
-    selected = select_clips(random.Random(args.seed), args.n_per_dataset)
+    selected = select_clips(args.seed, args.n_per_dataset)
     for _dname, category in DATASETS:
         print(f"  {category}: selected {len(selected[category])} clips")
+    write_selected_manifest(selected, SELECTED_MANIFEST_CSV, SELECTED_MANIFEST_JSON)
+    print(f"Wrote selection manifest: {SELECTED_MANIFEST_CSV}")
 
     all_records = []
     for dname, category in DATASETS:
@@ -645,15 +743,23 @@ def main():
         recs = process_dataset(dname, category, selected[category], out_dir, args.seed)
         all_records.extend(recs)
 
-    metadata_path = OUT_ROOT / "metadata.csv"
+    metadata_path = AUGMENTATION_METADATA_CSV
     write_metadata_csv(all_records, metadata_path)
     print(f"\nWrote metadata CSV: {metadata_path} ({len(all_records)} rows)")
+    violations = write_counts_and_check_ranges(all_records, AUGMENTATION_COUNTS_CSV)
+    if violations:
+        print(f"\nRANGE CHECK FAILED ({len(violations)} violations); first 10:")
+        for v in violations[:10]:
+            print("  ", v)
+        sys.exit(1)
+    print("Range check passed: only the eight requested augmentations, all parameters inside their requested ranges.")
 
     dataset_table, aug_table, param_values = build_summary_tables(all_records, args.n_per_dataset)
     print_and_save_summary(dataset_table, aug_table, param_values, args.n_per_dataset, OUT_ROOT)
 
     print()
-    print_benchmark_results_from_json()
+    if not args.no_primary_benchmark_section:
+        print_benchmark_results_from_json()
     print_augmentation_results_table(aug_table, OUT_ROOT)
 
     n_files_generated = sum(1 for r in all_records if r["status"] in ("applied", "adjusted"))
